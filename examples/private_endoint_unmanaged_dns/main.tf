@@ -66,21 +66,6 @@ module "virtual_network" {
   tags = local.tags
 }
 
-module "private_dns_aml_api" {
-  source  = "Azure/avm-res-network-privatednszone/azurerm"
-  version = "~> 0.2"
-
-  domain_name         = "privatelink.api.azureml.ms"
-  resource_group_name = azurerm_resource_group.this.name
-  enable_telemetry    = var.enable_telemetry
-  tags                = local.tags
-  virtual_network_links = {
-    dnslink = {
-      vnetlinkname = "privatelink.api.azureml.ms"
-      vnetid       = module.virtual_network.resource.id
-    }
-  }
-}
 
 module "private_dns_aml_notebooks" {
   source  = "Azure/avm-res-network-privatednszone/azurerm"
@@ -428,6 +413,14 @@ module "azureml" {
   key_vault = {
     resource_id = module.avm_res_keyvault_vault.resource_id
   }
+  private_endpoints = {
+    aml = {
+      # the name must be set to avoid conflicting resources.
+      name               = "pe-${local.name}"
+      subnet_resource_id = module.virtual_network.subnets["private_endpoints"].resource_id
+    }
+  }
+  private_endpoints_manage_dns_zone_group = false
   storage_account = {
     resource_id = module.avm_res_storage_storageaccount.resource_id
   }
