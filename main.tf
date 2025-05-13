@@ -13,6 +13,10 @@ resource "azapi_resource" "this" {
       description              = var.workspace_description
       friendlyName             = coalesce(var.workspace_friendly_name, (var.is_private ? "AMLManagedVirtualNetwork" : "AMLPublic"))
       systemDatastoresAuthMode = var.storage_access_type
+      networkAcls = var.network_acls != null ? {
+        defaultAction = var.network_acls.default_action
+        ipRules       = var.network_acls.ip_rules
+      } : null
       managedNetwork = {
         isolationMode = var.workspace_managed_network.isolation_mode
         status = {
@@ -38,11 +42,8 @@ resource "azapi_resource" "this" {
   }
   location  = var.location
   name      = var.name
-  parent_id = data.azurerm_resource_group.current.id
-  replace_triggers_external_values = [
-    var.resource_group_name # since this is the value that determines if parent_id changes, require create/destroy if it changes
-  ]
-  tags = var.tags
+  parent_id = local.parent_resource_id
+  tags      = var.tags
 
   dynamic "identity" {
     for_each = local.managed_identities
@@ -55,8 +56,7 @@ resource "azapi_resource" "this" {
 
   lifecycle {
     ignore_changes = [
-      tags,     # tags are occasionally added by Azure
-      parent_id # because this comes from data, the azapi provider doesn't know it ahead of time which leads to destroy/recreate instead of update
+      tags, # tags are occasionally added by Azure
     ]
   }
 }
@@ -101,11 +101,13 @@ resource "azapi_resource" "hub" {
   }
   location  = var.location
   name      = var.name
+
   parent_id = data.azurerm_resource_group.current.id
   replace_triggers_external_values = [
     var.resource_group_name # since this is the value that determines if parent_id changes, require create/destroy if it changes
   ]
   tags = var.tags
+
 
   dynamic "identity" {
     for_each = local.managed_identities
@@ -118,8 +120,7 @@ resource "azapi_resource" "hub" {
 
   lifecycle {
     ignore_changes = [
-      tags,     # When the service connections for CognitiveServices are created, tags are added to this resource
-      parent_id # because this comes from data, the azapi provider doesn't know it ahead of time which leads to destroy/recreate instead of update
+      tags, # When the service connections for CognitiveServices are created, tags are added to this resource
     ]
   }
 }

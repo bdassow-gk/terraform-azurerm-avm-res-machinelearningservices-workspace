@@ -113,7 +113,7 @@ A map describing customer-managed keys to associate with the resource. This incl
 - `key_version` - (Optional) The version of the key. If not specified, the latest version is used.
 - `user_assigned_identity` - (Optional) An object representing a user-assigned identity with the following properties:
   - `resource_id` - The resource ID of the user-assigned identity.
-DESCRIPTION  
+DESCRIPTION
 }
 
 # required AVM interface
@@ -133,7 +133,7 @@ variable "diagnostic_settings" {
   default     = {}
   description = <<DESCRIPTION
   A map of diagnostic settings to create on the Azure Machine Learning Workspace. The map key is deliberately arbitrary to avoid issues where map keys maybe unknown at plan time.
-  
+
   - `name` - (Optional) The name of the diagnostic setting. One will be generated if not set, however this will not be unique if you want to create multiple diagnostic setting resources.
   - `log_categories` - (Optional) A set of log categories to send to the log analytics workspace. Defaults to `[]`.
   - `log_groups` - (Optional) A set of log groups to send to the log analytics workspace. Defaults to `["allLogs"]`.
@@ -263,11 +263,26 @@ variable "managed_identities" {
   default     = {}
   description = <<DESCRIPTION
   Controls the Managed Identity configuration on this resource. The following properties can be specified:
-  
+
   - `system_assigned` - (Optional) Specifies if the System Assigned Managed Identity should be enabled.
   - `user_assigned_resource_ids` - (Optional) Specifies a list of User Assigned Managed Identity resource IDs to be assigned to this resource.
   DESCRIPTION
   nullable    = false
+}
+
+variable "network_acls" {
+  type = object({
+    default_action = optional(string, "Den")
+    ip_rules = optional(list(object({
+      value = string
+    })), [])
+  })
+  default     = null
+  description = <<DESCRIPTION
+Specifies the network access control list (ACL) for the workspace. This includes the following properties:
+- `default_action`: The default action for the network ACL. Possible values are `Allow` and `Deny`. Default is `Deny`.
+- `ip_rules`: A list of IP rules to allow access to the workspace. Each rule should be in CIDR notation.
+DESCRIPTION
 }
 
 variable "primary_user_assigned_identity" {
@@ -341,6 +356,13 @@ DESCRIPTION
   nullable    = false
 }
 
+variable "private_endpoints_manage_dns_zone_group" {
+  type        = bool
+  default     = true
+  description = "Whether to manage private DNS zone groups with this module. If set to false, you must manage private DNS zone groups externally, e.g. using Azure Policy."
+  nullable    = false
+}
+
 # required AVM interface
 variable "role_assignments" {
   type = map(object({
@@ -388,11 +410,30 @@ DESCRIPTION
   }
 }
 
+variable "subscription_id" {
+  type        = string
+  default     = null
+  description = <<DESCRIPTION
+The subscription ID where the resource will be created. This is used to determine the parent resource ID for the workspace.
+DESCRIPTION
+}
+
 # required AVM interface
 variable "tags" {
   type        = map(string)
   default     = null
   description = "(Optional) Tags of the resource."
+}
+
+variable "use_resource_group_data_id" {
+  type        = bool
+  default     = false
+  description = <<DESCRIPTION
+If set to true, the parent_id will be sourced from the data object instead of formatting from the resource group name and subscription ID.
+This can lead to recreating the resource if terraform cant determinate the id of the resource group at plan time.
+Included for backwards compatibility with older versions of the module.
+This is not recommended for new modules.
+DESCRIPTION
 }
 
 variable "workspace_description" {
@@ -443,7 +484,7 @@ Specifies properties of the workspace's managed virtual network.
   - 'AllowInternetOutbound': Allow all internet outbound traffic.
   - 'AllowOnlyApprovedOutbound': Outbound traffic is allowed by specifying service tags.
 - `spark_ready` determines whether spark jobs will be run on the network. This value can be updated in the future.
-- `outbound_rules`: 
+- `outbound_rules`:
   - `fqdn`: A map of FQDN rules. Only valid when `isolation_mode` is 'AllowOnlyApprovedOutbound'. **The inclusion of FQDN rules requires Azure Firewall to be deployed and used and cost will increase accordingly.
     - `destination`: The allowed host name. Required. Examples: '*.anaconda.com' to install packages, 'pypi.org' to list dependencies, '*.tensorflow.org' for use with TensorFlow examples
   - `private_endpoint`: A map of Private Endpoint rules.
@@ -454,7 +495,7 @@ Specifies properties of the workspace's managed virtual network.
     - `action`: The networking rule to apply. Available options are 'Allow' or 'Deny'.
     - `service_tag`: The target service tag.
     - `address_prefixes`: Optional collection of address prefixes. If provided, `service_tag` will be ignored.
-    - `protocol`: The allowed protocol(s). Valid options dependent on Service Tag. 
+    - `protocol`: The allowed protocol(s). Valid options dependent on Service Tag.
     - `port_ranges`: The allow port(s) / port ranges. Valid options dependent on Service Tag.
 - `firewall_sku`: The SKU of the Azure Firewall. Valid options are 'Basic' or 'Standard'. Default is 'Standard'.
 DESCRIPTION
